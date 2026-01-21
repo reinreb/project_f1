@@ -23,11 +23,9 @@ Seasons = 2018 -> 2025
 Sessions = FP1, FP2, FP3 and Qualifying
 Weather = dry sessions only
 Era = 2018 -> 2021 and 2022 -> 2025
-Model = LinearRegression / GradientBoosting
-
+Model = LinearRegression
 """
 #---------------CONFIG--------------
-
 
 track = "Italian Grand Prix"
 seasons = range(2018, 2025)
@@ -43,7 +41,7 @@ SESSION_MAP = {
 }
 
 def available_session_names(year: int, event_name: str):
-    """Liste des noms de sessions disponibles pour cet événement (selon calendrier officiel)."""
+    """Liste des noms de sessions disponibles pour cet événement"""
     sched = fastf1.get_event_schedule(year, include_testing=False)
     row = sched.loc[sched["EventName"] == event_name]
     if row.empty:
@@ -58,12 +56,16 @@ def available_session_names(year: int, event_name: str):
     return names
 
 def canonical_session_name(year: int, event_name: str, short_name: str):
-    """Retourne le nom officiel existant pour short_name (FP1/FP2/FP3/Qualifying), sinon None si absent."""
+    """Retourne le nom officiel existant pour short_name (FP1/FP2/FP3/Qualifying), sinon None"""
     cand = SESSION_MAP.get(short_name, short_name)
     avail = available_session_names(year, event_name)
-    return cand if cand in avail else None
+    if cand in avail:
+        return cand
+    else:
+        return None
 
 #---------------DATA FROM FASTF1--------------
+
 #retourne un dictionnaire avec pour chaque saison, les FL de chaque session du circuit 
 def get_events(s, t):
     list_id_event = []
@@ -94,31 +96,24 @@ def load_FL_from_session(year, s):
     sess_name = canonical_session_name(year, track, s)
     if not sess_name:
         return None
-    
     session = fastf1.get_session(year, track, s)
     session.load(laps=True, weather=True)
-
     laps = session.laps
     if laps is None or laps.empty:
         return None
-
-    # Filtrer tours invalides si colonnes présentes
+    #filtrer tours invalides si colonnes présentes
     if "Deleted" in laps.columns:
         laps = laps[~laps["Deleted"]]
     if "IsAccurate" in laps.columns:
         laps = laps[laps["IsAccurate"]]
-
-    # Colonnes requises
+    #colonnes requises
     if laps.empty or ("LapTime" not in laps.columns) or ("Driver" not in laps.columns):
         return None
-
     list_fastest_laps = []
     drivers = pd.unique(laps["Driver"])
-
     for drv in drivers:
         drvs_laps = laps.pick_drivers(drv)
-
-        # Sauter les pilotes sans tour exploitable
+        #sauter les pilotes sans tour exploitable
         if drvs_laps is None or drvs_laps.empty:
             continue
         if "LapTime" not in drvs_laps.columns:
@@ -126,14 +121,12 @@ def load_FL_from_session(year, s):
         drvs_laps = drvs_laps.dropna(subset=["LapTime"])
         if drvs_laps.empty:
             continue
-
-        # Meilleur tour du pilote (existe forcément ici)
+        #meilleur tour du pilote
         drvs_fastest_lap = drvs_laps.pick_fastest()
-        # Sécurité: ignorer si le LapTime est NaN
+        #ignorer si le LapTime est NaN
         if ("LapTime" in drvs_fastest_lap.index) and pd.notna(drvs_fastest_lap["LapTime"]):
             list_fastest_laps.append(drvs_fastest_lap)
 
-    # Fallback si aucun “meilleur tour par pilote” n’a passé les filtres
     if not list_fastest_laps:
         td = laps["LapTime"].min()
         if pd.notna(td):
@@ -162,13 +155,13 @@ def q3_pole_laptime(year):
         res = sess.results
     except Exception as e:
         return None
-
     if res is not None and "Q3" in res.columns:
         td = res["Q3"].dropna().min()
-        return float(td.total_seconds()) if pd.notna(td) else None
-    
-
-    
+        if pd.notna(td):
+            return float(td.total_seconds())
+        else:
+            return None
+            
 #dict des seances de FP avec pluie ou non et des Q3 sauf celle de l'année étudiée
 def FL_data_gathered(year_of_analyse):
     dict_FL = {}
@@ -199,7 +192,6 @@ def dataframe_exp(year_of_analyse):
 dataframe_exp(2025)
 
 #clean des données pour preparation à l'entrainement
-
 def clean(year_of_analyse):
     df = dataframe_exp(year_of_analyse)
     cols_essentielles = ['pole_q3', 'fp1_best', 'fp2_best', 'fp3_best']
@@ -245,7 +237,6 @@ def arrays_train_test(year_of_analyse):
 X_train, Y_train, X_test, Y_test, test_years = arrays_train_test(2025)
 
 #regression lineaire
-
 def linear_reg():
     model = LinearRegression()
     model.fit(X_train, Y_train)
@@ -267,7 +258,6 @@ def linear_reg():
 
 linear_reg()
 
-
 def linear_reg_monza_2024():
     print("-------------------------------")
     print("Linear Regression Monza 2024 Q3 ")
@@ -285,6 +275,5 @@ def linear_reg_monza_2024():
         print(f"ERREUR ABSOLUE     : {erreur:.3f} secondes")
         print(f"ECART RELATIF      : {(erreur/real_q3_2024)*100:.2f}%")
     return pred_q3_2024
-
 
 linear_reg_monza_2024()
