@@ -13,28 +13,28 @@ import fastf1.plotting
 fastf1.plotting.setup_mpl(mpl_timedelta_support=True, color_scheme='white')
 
 
-#Chargement de la session étudié (course)
+#chargement de la session étudié (course)
 race = fastf1.get_session(2025, "Brazil", 'R')
 race.load()
 
-#Chargement de tout les tours de tous les pilotes => on filtre les tours "slow" et on ne considere que les tours "rapides"
+#chargement de tout les tours de tous les pilotes => on filtre les tours "slow" et on ne considere que les tours "rapides"
 driver_laps = race.laps.pick_drivers(race.drivers[:20]).pick_quicklaps()
 driver_laps = driver_laps.reset_index() #remet à plat les index des lignes après filtrage pour driver_laps
 
 
-#Recuperation des abreviations de chaque pilote pour ensuite les inserer dans la liste finishing_order
+#recuperation des abreviations de chaque pilote pour ensuite les inserer dans la liste finishing_order
 finishing_order = []
 for i in race.drivers[:20]:
     abbreviation = race.get_driver(i)["Abbreviation"]
     finishing_order.append(abbreviation)
 
-#Création de l'affichage 
+#création de l'affichage 
 aff, ax = plt.subplots(figsize=(15, 7)) #15 de longueur et 7 de largeur (en inches)
 
-#Conversion les "LapTime" en secondes à cause de Seaborn 
+#conversion les "LapTime" en secondes à cause de Seaborn 
 driver_laps["LapTime(s)"] = driver_laps["LapTime"].dt.total_seconds()
 
-#Création des boites à moustaches 
+#création des boites à moustaches 
 sb.boxplot(data=driver_laps,
             x="Driver", #sur les abscisses 
             y="LapTime(s)", #sur les ordonnées 
@@ -50,10 +50,10 @@ sb.boxplot(data=driver_laps,
                 }       
 )
 
-#Légende de l'affichage 
+#legende de l'affichage 
 ax.set_xlabel("Pilote") 
 ax.set_ylabel("Temps au tour")
-plt.suptitle("2025 Brazil : Rythme de course (Race pace)") #Titre principal 
+plt.suptitle("2025 Brazil : Rythme de course (Race pace)") #titre principal 
 sb.despine(left=True, bottom=True) #on supprime les lignes au bord de l'affichage 
 
 plt.tight_layout()
